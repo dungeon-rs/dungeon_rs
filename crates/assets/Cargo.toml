@@ -1,0 +1,23 @@
+[package]
+name = "assets"
+description = "Contains the data structures used throughout other packages."
+edition.workspace = true
+repository.workspace = true
+version.workspace = true
+readme.workspace = true
+authors.workspace = true
+license-file.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+rhai = { version = "1.22.2", features = ["no_time"] }
+tantivy = "0.24.1"
+walkdir = "2.5.0"
+
+[features]
+default = []
+dev = []
