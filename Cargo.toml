@@ -39,6 +39,7 @@ serde = { version = "1.0", features = ["derive"] }
 semver = { version = "1.0.26", features = ["serde"] }
 
 # Workspace packages
+assets = { path = "crates/assets" }
 config = { path = "crates/config" }
 data = { path = "crates/data" }
 io = { path = "crates/io" }

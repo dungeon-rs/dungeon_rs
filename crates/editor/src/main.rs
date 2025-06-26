@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 
+use assets::AssetPlugin;
 use bevy::prelude::*;
 use config::Configuration;
 use io::IOPlugin;
@@ -22,6 +23,7 @@ fn main() -> AppExit {
             DefaultPlugins.set(log_plugin(&config.logging)),
             IOPlugin,
             UIPlugin,
+            AssetPlugin,
         ))
         .insert_resource(config)
         .run()

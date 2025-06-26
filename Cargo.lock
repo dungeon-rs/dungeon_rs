@@ -252,8 +252,14 @@ dependencies = [
 name = "assets"
 version = "0.0.1"
 dependencies = [
+ "bevy",
  "rhai",
+ "semver",
+ "serde",
+ "serialization",
  "tantivy",
+ "thiserror 2.0.12",
+ "utils",
  "walkdir",
 ]
 
@@ -2104,6 +2110,7 @@ dependencies = [
 name = "editor"
 version = "0.0.1"
 dependencies = [
+ "assets",
  "bevy",
  "config",
  "image",

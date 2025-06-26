@@ -14,10 +14,18 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+bevy = { workspace = true }
 rhai = { version = "1.22.2", features = ["no_time"] }
 tantivy = "0.24.1"
 walkdir = "2.5.0"
+utils = { workspace = true }
+semver = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
+serialization = { workspace = true }
+thiserror = { workspace = true }
 
 [features]
-default = []
+default = [
+    "serialization/toml"
+]
 dev = []
