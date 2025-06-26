@@ -4,7 +4,7 @@ use bevy::prelude::Resource;
 use semver::Version;
 use serialization::{Deserialize, SerializationFormat, Serialize, deserialize, serialize_to};
 use std::collections::HashMap;
-use std::fs::{create_dir_all, File};
+use std::fs::{File, create_dir_all};
 use std::io::Read;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -44,9 +44,9 @@ pub enum AssetLibraryError {
     /// An error occurred reading the configuration file itself.
     #[error("failed to read library configuration")]
     ReadFile(#[from] std::io::Error),
-    /// An error occurred while (de)serializing the library configuration.
+    /// An error occurred while (de)serialising the library configuration.
     #[error("failed to (de)serialize library configuration")]
-    Serialization(#[from] serialization::SerializationError),
+    Serialisation(#[from] serialization::SerializationError),
 }
 
 impl Default for AssetLibrary {
@@ -90,7 +90,7 @@ impl AssetLibrary {
             .map_err(AssetLibraryError::ReadFile)?;
 
         deserialize(contents.as_bytes(), &SerializationFormat::Toml)
-            .map_err(AssetLibraryError::Serialization)
+            .map_err(AssetLibraryError::Serialisation)
     }
 
     /// Saves the asset library.
@@ -105,7 +105,8 @@ impl AssetLibrary {
         let path = Self::get_path(path)?;
 
         create_dir_all(&path)?; // Ensure the directory exists.
-        let file = File::create(path.join(LIBRARY_FILE_NAME)).map_err(AssetLibraryError::ReadFile)?;
+        let file =
+            File::create(path.join(LIBRARY_FILE_NAME)).map_err(AssetLibraryError::ReadFile)?;
         serialize_to(self, &SerializationFormat::Toml, &file)?;
         Ok(())
     }
