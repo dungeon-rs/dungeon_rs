@@ -1,10 +1,15 @@
 //! An asset pack is a single root folder that contains asset and subfolders.
 
 use bevy::prelude::{Component, default};
+use serialization::{Deserialize, SerializationFormat, Serialize, deserialize, serialize_to};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::read_to_string;
 use std::path::PathBuf;
 use thiserror::Error;
 use utils::file_name;
+
+const MANIFEST_FILE_NAME: &str = "asset_pack.toml";
 
 /// An [`AssetPack`] is a single root folder that contains assets and subfolders.
 ///
@@ -46,8 +51,22 @@ pub struct AssetPack {
     script: Option<String>,
 }
 
+/// Internal "copy" of the [`AssetPack`] struct intended for saving/loading to disk.
+#[derive(Serialize, Deserialize, Debug)]
+#[allow(
+    clippy::missing_privacy_declaration,
+    reason = "Copied from the original struct"
+)]
+struct _AssetPack {
+    pub id: String,
+    pub name: String,
+    meta_dir: PathBuf,
+    index: HashMap<String, PathBuf>,
+    script: Option<String>,
+}
+
 /// Describes the current state of an [`AssetPack`].
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub enum AssetPackState {
     #[default]
     Created,
@@ -57,7 +76,12 @@ pub enum AssetPackState {
 }
 
 #[derive(Error, Debug)]
-pub enum AssetPackError {}
+pub enum AssetPackError {
+    #[error("An IO error occurred while reading/writing the asset pack manifest")]
+    ManifestFile(#[from] std::io::Error),
+    #[error("An error occurred while serializing the asset pack manifest")]
+    Serialisation(#[from] serialization::SerializationError),
+}
 
 impl AssetPack {
     /// Generate a new [`AssetPack`] in the [`AssetPackState::Created`] state.
@@ -69,7 +93,7 @@ impl AssetPack {
             .unwrap_or_else(|| id.clone());
 
         Ok(Self {
-            state: default(),
+            state: AssetPackState::Created,
             id: id.clone(),
             name,
             root,
@@ -77,5 +101,49 @@ impl AssetPack {
             index: HashMap::new(),
             script: None,
         })
+    }
+
+    /// Attempts to save the manifest for this [`AssetPack`] to disk.
+    ///
+    /// The resulting file will be written under [`AssetPack::root`].
+    pub fn save_manifest(&self) -> Result<(), AssetPackError> {
+        let config = _AssetPack::from(self);
+        let manifest = self.root.join(MANIFEST_FILE_NAME);
+        let manifest = File::create(manifest).map_err(AssetPackError::ManifestFile)?;
+
+        serialize_to(&config, &SerializationFormat::Toml, manifest)
+            .map_err(AssetPackError::Serialisation)
+    }
+
+    /// Attempts to load an [`AssetPack`] from its manifest in the `root` folder.
+    ///
+    /// The resulting [`AssetPack`] will always be in [`AssetPackState::Crated`].
+    pub fn load_manifest(root: &PathBuf) -> Result<Self, AssetPackError> {
+        let manifest = root.join(MANIFEST_FILE_NAME);
+        let manifest = File::open(manifest).map_err(AssetPackError::ManifestFile)?;
+        let manifest = read_to_string(manifest).map_err(AssetPackError::ManifestFile)?;
+
+        let manifest: _AssetPack = deserialize(manifest.as_bytes(), &SerializationFormat::Toml)?;
+        Ok(Self {
+            state: AssetPackState::Created,
+            id: manifest.id,
+            name: manifest.name,
+            root: root.clone(),
+            meta_dir: manifest.meta_dir,
+            index: manifest.index,
+            script: manifest.script,
+        })
+    }
+}
+
+impl From<&AssetPack> for _AssetPack {
+    fn from(pack: &AssetPack) -> Self {
+        Self {
+            id: pack.id.clone(),
+            name: pack.name.clone(),
+            meta_dir: pack.meta_dir.clone(),
+            index: pack.index.clone(),
+            script: pack.script.clone(),
+        }
     }
 }
