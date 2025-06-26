@@ -2,13 +2,15 @@
 
 use bevy::prelude::Resource;
 use semver::Version;
-use serialization::{Deserialize, SerializationFormat, Serialize, deserialize};
+use serialization::{Deserialize, SerializationFormat, Serialize, deserialize, serialize_to};
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::io::Read;
 use std::path::PathBuf;
 use thiserror::Error;
 use utils::{DirectoryError, config_path};
+
+const LIBRARY_FILE_NAME: &str = "library.toml";
 
 /// An [`AssetLibrary`] is a device-wide registry of packs that save files can refer to.
 /// It handles as the bridge between relative paths within an asset pack and the actual paths on
@@ -79,13 +81,7 @@ impl AssetLibrary {
     ///   [`AssetLibraryError::LocateConfigFolder`]
     /// - The file was found, could be read but failed to deserialize: [`AssetLibraryError::Serialization`].
     pub fn load(path: Option<PathBuf>) -> Result<Self, AssetLibraryError> {
-        let path = if let Some(path) = path {
-            path.join("library.toml")
-        } else {
-            let path = config_path().map_err(AssetLibraryError::LocateConfigFolder)?;
-
-            path.join("library.toml")
-        };
+        let path = Self::get_path(path)?.join(LIBRARY_FILE_NAME);
 
         let mut file = File::open(path).map_err(AssetLibraryError::ReadFile)?;
         let mut contents = String::new();
@@ -94,6 +90,27 @@ impl AssetLibrary {
 
         deserialize(contents.as_bytes(), &SerializationFormat::Toml)
             .map_err(AssetLibraryError::Serialization)
+    }
+
+    /// Saves the asset library.
+    pub fn save(&self, path: Option<PathBuf>) -> Result<(), AssetLibraryError> {
+        let path = Self::get_path(path)?;
+
+        create_dir_all(&path)?; // Ensure the directory exists.
+        let file = File::create(path.join(LIBRARY_FILE_NAME)).map_err(AssetLibraryError::ReadFile)?;
+        serialize_to(self, &SerializationFormat::Toml, &file)?;
+        Ok(())
+    }
+
+    /// Either returns `path` or `config_path()` if `path` is `None`.
+    fn get_path(path: Option<PathBuf>) -> Result<PathBuf, AssetLibraryError> {
+        let path = if let Some(path) = path {
+            path
+        } else {
+            config_path().map_err(AssetLibraryError::LocateConfigFolder)?
+        };
+
+        Ok(path)
     }
 }
 
