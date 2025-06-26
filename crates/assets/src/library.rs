@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 use utils::{DirectoryError, config_path};
 
+/// The name of the library configuration file.
 const LIBRARY_FILE_NAME: &str = "library.toml";
 
 /// An [`AssetLibrary`] is a device-wide registry of packs that save files can refer to.
@@ -93,6 +94,13 @@ impl AssetLibrary {
     }
 
     /// Saves the asset library.
+    ///
+    /// # Errors
+    /// An error can be returned for the following situations:
+    /// - The configuration folder could not be retrieved: [`AssetLibraryError::LocateConfigFolder`]
+    /// - An error occurs while trying to read the config file (doesn't exist, permissions, ...):
+    ///   [`AssetLibraryError::LocateConfigFolder`]
+    /// - The file was found, could be read but failed to deserialize: [`AssetLibraryError::Serialization`].
     pub fn save(&self, path: Option<PathBuf>) -> Result<(), AssetLibraryError> {
         let path = Self::get_path(path)?;
 
@@ -103,6 +111,9 @@ impl AssetLibrary {
     }
 
     /// Either returns `path` or `config_path()` if `path` is `None`.
+    ///
+    /// # Errors
+    /// Returns an error if the configuration folder cannot be found.
     fn get_path(path: Option<PathBuf>) -> Result<PathBuf, AssetLibraryError> {
         let path = if let Some(path) = path {
             path
