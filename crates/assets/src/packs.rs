@@ -1,14 +1,16 @@
 //! An asset pack is a single root folder that contains asset and subfolders.
 
-use bevy::prelude::{Component, default};
+use bevy::prelude::Component;
 use serialization::{Deserialize, SerializationFormat, Serialize, deserialize, serialize_to};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::read_to_string;
+use std::path::Path;
 use std::path::PathBuf;
 use thiserror::Error;
 use utils::file_name;
 
+/// The filename of the asset pack manifests.
 const MANIFEST_FILE_NAME: &str = "asset_pack.toml";
 
 /// An [`AssetPack`] is a single root folder that contains assets and subfolders.
@@ -54,7 +56,7 @@ pub struct AssetPack {
 /// Internal "copy" of the [`AssetPack`] struct intended for saving/loading to disk.
 #[derive(Serialize, Deserialize, Debug)]
 #[allow(
-    clippy::missing_privacy_declaration,
+    clippy::missing_docs_in_private_items,
     reason = "Copied from the original struct"
 )]
 struct _AssetPack {
@@ -68,31 +70,39 @@ struct _AssetPack {
 /// Describes the current state of an [`AssetPack`].
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub enum AssetPackState {
+    /// The asset pack was just created, no validation or checks to its current state have been made.
+    /// Additional processing is required to validate the pack's state before it can be used.
     #[default]
     Created,
+    /// The asset pack is currently (re)indexing its contents.
     Indexing,
+    /// Something went wrong during processing, leaving this pack in an invalid state.
     Invalid(String),
+    /// The pack is ready to use.
     Ready,
 }
 
+/// Describes the errors that can occur when working with [`AssetPack`]s
 #[derive(Error, Debug)]
 pub enum AssetPackError {
+    /// Thrown when creating/opening the asset pack manifest fails.
     #[error("An IO error occurred while reading/writing the asset pack manifest")]
     ManifestFile(#[from] std::io::Error),
-    #[error("An error occurred while serializing the asset pack manifest")]
+    /// Thrown when the serialisation of an asset pack manifest fails.
+    #[error("An error occurred while serialising the asset pack manifest")]
     Serialisation(#[from] serialization::SerializationError),
 }
 
 impl AssetPack {
     /// Generate a new [`AssetPack`] in the [`AssetPackState::Created`] state.
-    pub fn new(root: PathBuf, name: Option<String>) -> Result<Self, AssetPackError> {
+    pub fn new(root: PathBuf, name: Option<String>) -> Self {
         let meta_dir = root.join(".metadata");
         let id = blake3::hash(root.as_os_str().as_encoded_bytes()).to_string();
         let name = name
             .or_else(|| file_name(&root))
             .unwrap_or_else(|| id.clone());
 
-        Ok(Self {
+        Self {
             state: AssetPackState::Created,
             id: id.clone(),
             name,
@@ -100,12 +110,15 @@ impl AssetPack {
             meta_dir,
             index: HashMap::new(),
             script: None,
-        })
+        }
     }
 
     /// Attempts to save the manifest for this [`AssetPack`] to disk.
-    ///
     /// The resulting file will be written under [`AssetPack::root`].
+    ///
+    /// # Errors
+    /// - [`AssetPackError::ManifestFile`] when the file/folder for the manifest couldn't be created.
+    /// - [`AssetPackError::Serialisation`] when serialising the manifest fails.
     pub fn save_manifest(&self) -> Result<(), AssetPackError> {
         let config = _AssetPack::from(self);
         let manifest = self.root.join(MANIFEST_FILE_NAME);
@@ -116,9 +129,12 @@ impl AssetPack {
     }
 
     /// Attempts to load an [`AssetPack`] from its manifest in the `root` folder.
-    ///
     /// The resulting [`AssetPack`] will always be in [`AssetPackState::Crated`].
-    pub fn load_manifest(root: &PathBuf) -> Result<Self, AssetPackError> {
+    ///
+    /// # Errors
+    /// - [`AssetPackError::ManifestFile`] when the file/folder for the manifest couldn't be opened.
+    /// - [`AssetPackError::Serialisation`] when serialising the manifest fails.
+    pub fn load_manifest(root: &Path) -> Result<Self, AssetPackError> {
         let manifest = root.join(MANIFEST_FILE_NAME);
         let manifest = File::open(manifest).map_err(AssetPackError::ManifestFile)?;
         let manifest = read_to_string(manifest).map_err(AssetPackError::ManifestFile)?;
@@ -128,7 +144,7 @@ impl AssetPack {
             state: AssetPackState::Created,
             id: manifest.id,
             name: manifest.name,
-            root: root.clone(),
+            root: root.to_path_buf(),
             meta_dir: manifest.meta_dir,
             index: manifest.index,
             script: manifest.script,
