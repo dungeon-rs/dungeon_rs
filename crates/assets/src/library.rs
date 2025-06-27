@@ -181,4 +181,18 @@ mod tests {
         assert!(library.registered_packs.contains_key(&pack_id));
         Ok(())
     }
+
+    #[test]
+    fn save_and_load_library() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let mut library = AssetLibrary::default();
+        let pack_id = library.add_pack(tmp.path(), None)?;
+
+        library.save(Some(tmp.path().to_path_buf()))?;
+        let library = AssetLibrary::load_or_default(Some(tmp.path().to_path_buf()))?;
+
+        assert_eq!(library.registered_packs.len(), 1);
+        assert!(library.registered_packs.contains_key(&pack_id));
+        Ok(())
+    }
 }
