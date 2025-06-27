@@ -24,6 +24,10 @@ serialization = { workspace = true }
 thiserror = { workspace = true }
 blake3 = "1.8.2"
 
+[dev-dependencies]
+anyhow = { workspace = true }
+tempfile = { workspace = true }
+
 [features]
 default = [
     "serialization/toml"

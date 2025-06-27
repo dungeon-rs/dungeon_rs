@@ -240,12 +240,14 @@ dependencies = [
 name = "assets"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
  "bevy",
  "blake3",
  "rhai",
  "semver",
  "serde",
  "serialization",
+ "tempfile",
  "thiserror 2.0.12",
  "utils",
  "walkdir",

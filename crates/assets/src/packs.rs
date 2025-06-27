@@ -16,7 +16,7 @@ const MANIFEST_FILE_NAME: &str = "asset_pack.toml";
 /// An [`AssetPack`] is a single root folder that contains assets and subfolders.
 ///
 /// The asset pack handles the indexing, categorising and loading the assets.
-#[derive(Component)]
+#[derive(Component, Debug)]
 pub struct AssetPack {
     /// The state the pack is currently in.
     ///
@@ -41,8 +41,6 @@ pub struct AssetPack {
     /// This ranges from index metadata, scripts to thumbnails, this directory is not guaranteed to
     /// exist between runs and may be cleaned to recover disk space. The operations in this directory
     /// should be ephemeral by design.
-    ///
-    /// By default, this is embedded in a hidden subfolder of the [`AssetPack::root`] itself.
     meta_dir: PathBuf,
     /// Internal mapping table between asset identifiers and their physical paths.
     ///
@@ -62,7 +60,6 @@ pub struct AssetPack {
 struct _AssetPack {
     pub id: String,
     pub name: String,
-    meta_dir: PathBuf,
     index: HashMap<String, PathBuf>,
     script: Option<String>,
 }
@@ -95,22 +92,26 @@ pub enum AssetPackError {
 
 impl AssetPack {
     /// Generate a new [`AssetPack`] in the [`AssetPackState::Created`] state.
-    pub fn new(root: PathBuf, name: Option<String>) -> Self {
-        let meta_dir = root.join(".metadata");
+    ///
+    /// # Errors
+    /// This method may return an error if it fails to [canonicalize](https://doc.rust-lang.org/std/fs/fn.canonicalize.html)
+    /// the root path.
+    pub fn new(root: &Path, meta_dir: &Path, name: Option<String>) -> Result<Self, AssetPackError> {
+        let root = root.canonicalize()?;
         let id = blake3::hash(root.as_os_str().as_encoded_bytes()).to_string();
         let name = name
             .or_else(|| file_name(&root))
             .unwrap_or_else(|| id.clone());
 
-        Self {
+        Ok(Self {
             state: AssetPackState::Created,
             id: id.clone(),
             name,
             root,
-            meta_dir,
+            meta_dir: meta_dir.to_path_buf(),
             index: HashMap::new(),
             script: None,
-        }
+        })
     }
 
     /// Attempts to save the manifest for this [`AssetPack`] to disk.
@@ -134,7 +135,7 @@ impl AssetPack {
     /// # Errors
     /// - [`AssetPackError::ManifestFile`] when the file/folder for the manifest couldn't be opened.
     /// - [`AssetPackError::Serialisation`] when serialising the manifest fails.
-    pub fn load_manifest(root: &Path) -> Result<Self, AssetPackError> {
+    pub fn load_manifest(root: &Path, meta_dir: &Path) -> Result<Self, AssetPackError> {
         let manifest = root.join(MANIFEST_FILE_NAME);
         let manifest = File::open(manifest).map_err(AssetPackError::ManifestFile)?;
         let manifest = read_to_string(manifest).map_err(AssetPackError::ManifestFile)?;
@@ -145,7 +146,7 @@ impl AssetPack {
             id: manifest.id,
             name: manifest.name,
             root: root.to_path_buf(),
-            meta_dir: manifest.meta_dir,
+            meta_dir: meta_dir.to_path_buf(),
             index: manifest.index,
             script: manifest.script,
         })
@@ -157,9 +158,44 @@ impl From<&AssetPack> for _AssetPack {
         Self {
             id: pack.id.clone(),
             name: pack.name.clone(),
-            meta_dir: pack.meta_dir.clone(),
             index: pack.index.clone(),
             script: pack.script.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::missing_panics_doc)]
+    #![allow(clippy::missing_errors_doc)]
+
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn new_asset_pack_id_is_stable() {
+        let path = Path::new(".");
+        let pack = AssetPack::new(path, path, None).unwrap();
+        let pack2 = AssetPack::new(path, path, None).unwrap();
+
+        assert_eq!(pack.id, pack2.id);
+    }
+
+    #[test]
+    fn new_asset_pack_id_unique() -> anyhow::Result<()> {
+        let path1 = tempdir()?;
+        let path2 = tempdir()?;
+        let pack1 = AssetPack::new(path1.path(), path1.path(), None)?;
+        let pack2 = AssetPack::new(path2.path(), path2.path(), None)?;
+
+        assert_ne!(pack1.id, pack2.id);
+        Ok(())
+    }
+
+    #[test]
+    #[should_panic = "Should fail to create asset pack"]
+    fn new_asset_error_on_invalid_path() {
+        let path = Path::new("./does/not/exist");
+        AssetPack::new(path, path, None).expect("Should fail to create asset pack");
     }
 }
