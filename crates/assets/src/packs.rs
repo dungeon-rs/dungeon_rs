@@ -165,6 +165,12 @@ impl AssetPack {
             self.index.insert(key, path.to_path_buf());
         }
     }
+
+    /// Attempts to resolve the given identifier into a [`PathBuf`].
+    #[must_use]
+    pub fn resolve(&self, id: &String) -> Option<PathBuf> {
+        self.index.get(id).map(|path| self.root.join(path))
+    }
 }
 
 impl From<&AssetPack> for _AssetPack {
