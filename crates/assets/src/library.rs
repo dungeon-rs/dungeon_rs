@@ -1,14 +1,15 @@
 //! A library serves as a device-wide registry of asset packs.
 
+use crate::{AssetPack, AssetPackError};
 use bevy::prelude::Resource;
 use semver::Version;
 use serialization::{Deserialize, SerializationFormat, Serialize, deserialize, serialize_to};
 use std::collections::HashMap;
 use std::fs::{File, create_dir_all};
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
-use utils::{DirectoryError, config_path};
+use utils::{DirectoryError, cache_path, config_path};
 
 /// The name of the library configuration file.
 const LIBRARY_FILE_NAME: &str = "library.toml";
@@ -47,6 +48,9 @@ pub enum AssetLibraryError {
     /// An error occurred while (de)serialising the library configuration.
     #[error("failed to (de)serialize library configuration")]
     Serialisation(#[from] serialization::SerializationError),
+    /// Wrapper for the [`AssetPackError`].
+    #[error(transparent)]
+    AssetPack(#[from] AssetPackError),
 }
 
 impl Default for AssetLibrary {
@@ -111,6 +115,29 @@ impl AssetLibrary {
         Ok(())
     }
 
+    /// Registers a new [`AssetPack`] in the library.
+    ///
+    /// # Errors
+    /// - The configuration folder could not be retrieved: [`AssetLibraryError::LocateConfigFolder`]
+    /// - An error occurs while trying to read the config file (doesn't exist, permissions, ...):
+    ///   [`AssetLibraryError::LocateConfigFolder`]
+    /// - The file was found, could be read but failed to deserialize: [`AssetLibraryError::Serialization`].
+    pub fn add_pack(
+        &mut self,
+        root: &Path,
+        name: Option<String>,
+    ) -> Result<AssetPack, AssetLibraryError> {
+        let meta_dir = cache_path()?;
+        let pack = AssetPack::new(root, meta_dir.as_path(), name)?;
+        let entry = AssetLibraryEntry {
+            root: root.to_path_buf(),
+            index: meta_dir.clone(),
+        };
+
+        self.asset_packs.insert(pack.id.clone(), entry);
+        Ok(pack)
+    }
+
     /// Either returns `path` or `config_path()` if `path` is `None`.
     ///
     /// # Errors
@@ -128,5 +155,19 @@ impl AssetLibrary {
 
 #[cfg(test)]
 mod tests {
-    // TODO: add unit tests.
+    #![allow(clippy::missing_panics_doc)]
+    #![allow(clippy::missing_errors_doc)]
+
+    use super::*;
+
+    #[test]
+    fn add_pack_creates_asset_pack() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let mut library = AssetLibrary::default();
+        let pack = library.add_pack(tmp.path(), None)?;
+
+        assert_eq!(library.asset_packs.len(), 1);
+        assert!(library.asset_packs.contains_key(&pack.id));
+        Ok(())
+    }
 }

@@ -36,12 +36,12 @@ pub struct AssetPack {
     ///
     /// This is used internally to generate relative paths (that are portable) from absolute paths
     /// used in the asset loader.
-    root: PathBuf,
+    pub root: PathBuf,
     /// The directory in which metadata about the [`AssetPack`] is kept.
     /// This ranges from index metadata, scripts to thumbnails, this directory is not guaranteed to
     /// exist between runs and may be cleaned to recover disk space. The operations in this directory
     /// should be ephemeral by design.
-    meta_dir: PathBuf,
+    pub meta_dir: PathBuf,
     /// Internal mapping table between asset identifiers and their physical paths.
     ///
     /// Each path value is relative to the [`AssetPack::root`].
