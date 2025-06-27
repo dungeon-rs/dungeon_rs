@@ -22,7 +22,13 @@ pub struct AssetLibrary {
     /// The version of the software that last touched the library, used to help with future migrations.
     version: Version,
     /// A map of asset packs, keyed by their (public) identifiers.
-    asset_packs: HashMap<String, AssetLibraryEntry>,
+    registered_packs: HashMap<String, AssetLibraryEntry>,
+    /// A map of currently loaded asset packs, keyed by their (public) identifiers.
+    ///
+    /// Given that this map is only persisted for the runtime of the application,
+    /// it's possible that an [`AssetPack`] is 'known' but not loaded.
+    #[serde(skip)]
+    loaded_packs: HashMap<String, AssetPack>,
 }
 
 /// Represents an entry in the library, containing additional metadata about an asset pack.
@@ -57,7 +63,8 @@ impl Default for AssetLibrary {
     fn default() -> Self {
         Self {
             version: utils::version().clone(),
-            asset_packs: HashMap::new(),
+            registered_packs: HashMap::new(),
+            loaded_packs: HashMap::new(),
         }
     }
 }
@@ -115,7 +122,9 @@ impl AssetLibrary {
         Ok(())
     }
 
-    /// Registers a new [`AssetPack`] in the library.
+    /// Registers a new [`AssetPack`] in the library and returns the [`AssetPack`]'s ID.
+    ///
+    /// Note that you should only use this to create a *new* pack, not to load an existing one.
     ///
     /// # Errors
     /// - The configuration folder could not be retrieved: [`AssetLibraryError::LocateConfigFolder`]
@@ -126,16 +135,18 @@ impl AssetLibrary {
         &mut self,
         root: &Path,
         name: Option<String>,
-    ) -> Result<AssetPack, AssetLibraryError> {
+    ) -> Result<String, AssetLibraryError> {
         let meta_dir = cache_path()?;
         let pack = AssetPack::new(root, meta_dir.as_path(), name)?;
+        let pack_id = pack.id.clone();
         let entry = AssetLibraryEntry {
             root: root.to_path_buf(),
             index: meta_dir.clone(),
         };
 
-        self.asset_packs.insert(pack.id.clone(), entry);
-        Ok(pack)
+        self.registered_packs.insert(pack_id.clone(), entry);
+        self.loaded_packs.insert(pack_id.clone(), pack);
+        Ok(pack_id)
     }
 
     /// Either returns `path` or `config_path()` if `path` is `None`.
@@ -164,10 +175,10 @@ mod tests {
     fn add_pack_creates_asset_pack() -> anyhow::Result<()> {
         let tmp = tempfile::tempdir()?;
         let mut library = AssetLibrary::default();
-        let pack = library.add_pack(tmp.path(), None)?;
+        let pack_id = library.add_pack(tmp.path(), None)?;
 
-        assert_eq!(library.asset_packs.len(), 1);
-        assert!(library.asset_packs.contains_key(&pack.id));
+        assert_eq!(library.registered_packs.len(), 1);
+        assert!(library.registered_packs.contains_key(&pack_id));
         Ok(())
     }
 }
