@@ -9,6 +9,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use thiserror::Error;
 use utils::file_name;
+use walkdir::WalkDir;
 
 /// The filename of the asset pack manifests.
 const MANIFEST_FILE_NAME: &str = "asset_pack.toml";
@@ -150,6 +151,19 @@ impl AssetPack {
             index: manifest.index,
             script: manifest.script,
         })
+    }
+
+    /// TODO: TEMPORARY IMPLEMENTATION
+    pub fn index(&mut self) {
+        let walker = WalkDir::new(&self.root);
+
+        for entry in walker.into_iter().flatten() {
+            let path = entry.path().to_path_buf();
+            let path = path.strip_prefix(&self.root).unwrap();
+            let key = blake3::hash(path.as_os_str().as_encoded_bytes()).to_string();
+
+            self.index.insert(key, path.to_path_buf());
+        }
     }
 }
 
