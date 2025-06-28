@@ -170,6 +170,31 @@ impl AssetLibrary {
             .ok_or(AssetLibraryError::NotFound(id.clone()))
     }
 
+    /// Adds a method to check if a given [`AssetPack`] is already loaded in the current library.
+    #[inline]
+    #[must_use]
+    pub fn is_pack_loaded(&self, id: &String) -> bool {
+        self.loaded_packs.contains_key(id)
+    }
+
+    /// Checks whether an asset pack is "known" (registered) within the current asset library.
+    ///
+    /// You can register new asset packs using [`AssetLibrary::add_pack`].
+    #[inline]
+    #[must_use]
+    pub fn is_pack_registered(&self, id: &String) -> bool {
+        self.registered_packs.contains_key(id)
+    }
+
+    /// Attempts to retrieve an previously loaded [`AssetPack`] from the current library.
+    ///
+    /// If `None` is returned the pack either doesn't exist or hasn't been loaded yet (see [`AssetLibrary::load_pack`]).
+    #[inline]
+    #[must_use]
+    pub fn get_pack_mut(&mut self, id: &String) -> Option<&mut AssetPack> {
+        self.loaded_packs.get_mut(id)
+    }
+
     /// Either returns `path` or `config_path()` if `path` is `None`.
     ///
     /// # Errors
@@ -223,7 +248,9 @@ mod tests {
         let mut library = AssetLibrary::default();
         let pack = AssetPack::new(tmp.path(), tmp.path(), None)?;
 
-        library.load_pack(&pack.id).expect_err("Asset pack should not be registered");
+        library
+            .load_pack(&pack.id)
+            .expect_err("Asset pack should not be registered");
         assert!(library.loaded_packs.is_empty());
         assert!(library.registered_packs.is_empty());
         Ok(())
