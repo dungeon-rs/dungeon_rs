@@ -196,6 +196,12 @@ impl AssetLibrary {
         self.loaded_packs.get_mut(id)
     }
 
+    /// Iterator over all registered packs.
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &PathBuf)> {
+        self.registered_packs.iter().map(|(key, value)| (key, &value.root))
+    }
+
     /// Either returns `path` or `config_path()` if `path` is `None`.
     ///
     /// # Errors
@@ -254,6 +260,20 @@ mod tests {
             .expect_err("Asset pack should not be registered");
         assert!(library.loaded_packs.is_empty());
         assert!(library.registered_packs.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn iterate_registered_packs() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let mut library = AssetLibrary::default();
+        let pack_id = library.add_pack(tmp.path(), None)?;
+        library.loaded_packs.clear();
+
+        for (id, entry) in library.iter() {
+            assert_eq!(id, &pack_id);
+            assert_eq!(entry, &tmp.path().to_path_buf());
+        }
         Ok(())
     }
 }
