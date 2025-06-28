@@ -56,7 +56,9 @@ pub enum AssetLibraryError {
     Serialisation(#[from] serialization::SerializationError),
     /// Wrapper for the [`AssetPackError`].
     #[error(transparent)]
-    AssetPack(#[from] AssetPackError),
+    OpenAssetPack(#[from] AssetPackError),
+    #[error("Could not resolve AssetPack with ID '{0}'")]
+    NotFound(String),
 }
 
 impl Default for AssetLibrary {
@@ -149,6 +151,25 @@ impl AssetLibrary {
         Ok(pack_id)
     }
 
+    /// Attempt to load a previously registered [`AssetPack`].
+    ///
+    /// # Errors
+    /// - If the asset pack isn't previously registered using [`AssetLibrary::add_pack`] this method
+    ///   returns [`AssetLibraryError::NotFound`].
+    /// - If an error occurs while loading the [`AssetPack`], it returns [`AssetLibraryError::OpenAssetPack`].
+    pub fn load_pack(&mut self, id: &String) -> Result<&mut AssetPack, AssetLibraryError> {
+        let Some(entry) = self.registered_packs.get(id) else {
+            return Err(AssetLibraryError::NotFound(id.clone()));
+        };
+
+        let pack = AssetPack::load_manifest(entry.root.as_path(), entry.index.as_path())?;
+        self.loaded_packs.insert(id.clone(), pack);
+
+        self.loaded_packs
+            .get_mut(id)
+            .ok_or(AssetLibraryError::NotFound(id.clone()))
+    }
+
     /// Either returns `path` or `config_path()` if `path` is `None`.
     ///
     /// # Errors
@@ -193,6 +214,18 @@ mod tests {
 
         assert_eq!(library.registered_packs.len(), 1);
         assert!(library.registered_packs.contains_key(&pack_id));
+        Ok(())
+    }
+
+    #[test]
+    fn load_asset_pack_requires_registration() -> anyhow::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let mut library = AssetLibrary::default();
+        let pack = AssetPack::new(tmp.path(), tmp.path(), None)?;
+
+        library.load_pack(&pack.id).expect_err("Asset pack should not be registered");
+        assert!(library.loaded_packs.is_empty());
+        assert!(library.registered_packs.is_empty());
         Ok(())
     }
 }
