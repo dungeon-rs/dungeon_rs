@@ -57,6 +57,7 @@ pub enum AssetLibraryError {
     /// Wrapper for the [`AssetPackError`].
     #[error(transparent)]
     OpenAssetPack(#[from] AssetPackError),
+    /// The requested asset pack was not loaded or registered, depending on the operation.
     #[error("Could not resolve AssetPack with ID '{0}'")]
     NotFound(String),
 }
