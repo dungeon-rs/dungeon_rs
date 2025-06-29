@@ -24,6 +24,8 @@ bevy = { workspace = true, default-features = false, features = [
   "bevy_winit",
   "bevy_asset"
 ] }
+rfd = { workspace = true }
+sysinfo = { version = "0.35.2", default-features = false, features = ["system"] }
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 image = { version = "0.25.6", default-features = false, features = ["png", "ico"] }

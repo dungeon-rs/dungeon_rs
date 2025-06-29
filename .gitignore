@@ -20,3 +20,4 @@ output.drs
 # Ignore CHANGELOG.md, licenses and other generated files.
 CHANGELOG.md
 THIRD-PARTY-LICENSES.html
+crash_report*
