@@ -1,6 +1,6 @@
 //! An asset pack is a single root folder that contains asset and subfolders.
 
-use bevy::prelude::Component;
+use bevy::prelude::{Asset, AssetServer, Component, Handle};
 use serialization::{Deserialize, SerializationFormat, Serialize, deserialize, serialize_to};
 use std::collections::HashMap;
 use std::fs::File;
@@ -154,6 +154,7 @@ impl AssetPack {
     }
 
     /// TODO: TEMPORARY IMPLEMENTATION
+    #[allow(clippy::missing_panics_doc, reason = "Temporary implementation")]
     pub fn index(&mut self) {
         let walker = WalkDir::new(&self.root);
 
@@ -170,6 +171,19 @@ impl AssetPack {
     #[must_use]
     pub fn resolve(&self, id: &String) -> Option<PathBuf> {
         self.index.get(id).map(|path| self.root.join(path))
+    }
+
+    /// Attempts to load the asset associated with the given path.
+    #[must_use = "Unused asset handle would be dropped immediately"]
+    pub fn load<T>(&self, asset_server: &AssetServer, id: &String) -> Option<Handle<T>>
+    where
+        T: Asset,
+    {
+        if let Some(path) = self.resolve(id) {
+            return Some(asset_server.load::<T>(path));
+        }
+
+        None
     }
 }
 

@@ -199,7 +199,9 @@ impl AssetLibrary {
     /// Iterator over all registered packs.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = (&String, &PathBuf)> {
-        self.registered_packs.iter().map(|(key, value)| (key, &value.root))
+        self.registered_packs
+            .iter()
+            .map(|(key, value)| (key, &value.root))
     }
 
     /// Either returns `path` or `config_path()` if `path` is `None`.

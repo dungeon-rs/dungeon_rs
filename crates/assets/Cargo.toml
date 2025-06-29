@@ -14,7 +14,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-bevy = { workspace = true }
+bevy = { workspace = true, features = ["bevy_asset"] }
 rhai = { version = "1.22.2", features = ["no_time"] }
 walkdir = "2.5.0"
 utils = { workspace = true }
