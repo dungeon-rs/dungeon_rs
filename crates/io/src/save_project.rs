@@ -5,7 +5,7 @@ use bevy::prelude::{
     BevyError, Children, Entity, Event, EventReader, Name, Query, Transform, With,
 };
 use bevy::prelude::{Commands, default};
-use data::{Layer, Level, Project};
+use data::{Element, Layer, Level, Project};
 use serialization::serialize_to;
 use std::{fs::File, path::PathBuf};
 use utils::{AsyncComponent, report_progress};
@@ -55,6 +55,7 @@ pub fn handle_save_project(
     project_query: Query<(&Name, &Children), With<Project>>,
     level_query: Query<(&Level, &Name, &Children)>,
     layer_query: Query<(&Layer, &Name, &Transform, &Children)>,
+    object_query: Query<(&Element, &Name, &Transform)>,
 ) -> Result<(), BevyError> {
     let Some(event) = events.read().next() else {
         return Ok(());
@@ -64,7 +65,7 @@ pub fn handle_save_project(
 
     let entity = event.project;
     let output = event.output.clone();
-    let document = Document::new(project, level_query, layer_query);
+    let document = Document::new(project, level_query, layer_query, object_query);
     commands.spawn(AsyncComponent::new_io(
         async move |sender| {
             let file = File::create(output.clone()).with_context(|| {

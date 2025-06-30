@@ -1,7 +1,7 @@
 //! Defines the [`Element`] enum and it's implementations.
 
-use bevy::prelude::Visibility;
 use bevy::prelude::Component;
+use bevy::prelude::Visibility;
 
 /// An [`Element`] is the lowest level of the project hierarchy.
 ///
@@ -51,7 +51,7 @@ use bevy::prelude::Component;
 #[non_exhaustive]
 pub enum Element {
     /// Represents an image, no pathing, patterns, ...
-    Object(String)
+    Object(String),
 }
 
 impl Element {
